@@ -11,6 +11,7 @@ Cần Python 3. Chạy `./start.ps1` trong PowerShell, rồi mở http://127.0.0
 - Thư viện là trang chủ. Khi mở ứng dụng, người dùng chọn sách hoặc tài liệu trong gallery rồi mới chuyển sang trình đọc.
 - Mở sẵn Ryden_IntroCosmo.pdf; thêm một hoặc nhiều PDF bằng nút Thêm tài liệu PDF. Máy chủ cục bộ lưu tệp vào `C:\Users\duyqu\Desktop\githup\EbookStudio\Libaries`; gallery Thư viện đọc trực tiếp danh sách PDF từ thư mục này.
 - Cuộn liên tục qua các trang; ứng dụng chỉ dựng những trang gần vùng nhìn để giữ hiệu năng với tài liệu dài. Có thể nhập số trang để cuộn nhanh đến vị trí cần đọc, phóng to/thu nhỏ, vừa chiều rộng và dùng chế độ tập trung.
+- Chế độ **Trang đôi** giữ trang bìa đứng riêng rồi ghép các cặp 2–3, 4–5… để xem trọn các bản trải rộng. Chế độ này tự bật với `Daihatsu Gensets Engine Catalog.pdf` và có thể bật/tắt cho mọi tài liệu từ thanh công cụ.
 - Khi bôi đen nội dung PDF, thanh công cụ cạnh đoạn chọn cho phép Tra từ, Highlight hoặc Ghi chú. Chọn lại đúng đoạn đã highlight để bỏ highlight. Bảng tra từ tối giản chỉ hiện từ, IPA, nghĩa, nghe phát âm và lưu từ; hỗ trợ nhập thủ công. Dịch đoạn tối đa 500 byte.
 - Lưu từ vựng, ghi chú theo trang, sửa/xóa, tô sáng đoạn đã ghi chú, đánh dấu trang và xuất ghi chú/từ vựng thành Markdown.
 - Lưu tiến độ, từ và ghi chú trong localStorage; lưu PDF nhập vào thư mục `Libaries`. Nhận diện tài liệu bằng fingerprint PDF để giữ liên kết tiến độ và ghi chú. Tệp trùng tên được tự thêm hậu tố `(1)`, `(2)` để không ghi đè.

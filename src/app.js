@@ -9,7 +9,12 @@ const key = 'ebookstudio-v1';
 let saved; try { saved = JSON.parse(localStorage.getItem(key)); } catch {}
 const state = saved && Array.isArray(saved.notes) && Array.isArray(saved.words) && saved.books ? saved : {notes:[], words:[], books:{}};
 if(!Array.isArray(state.highlights))state.highlights=[];
-let pdf, docId, pageNo = 1, zoom = 1, generation = 0, loadGeneration = 0, lookupGeneration = 0, currentWord, selection = null, editId = null, toastTimer, pageObserver, scrollObserver, currentLibraryId = 'sample';
+let pdf, docId, pageNo = 1, zoom = 1, spreadMode = false, generation = 0, loadGeneration = 0, lookupGeneration = 0, currentWord, selection = null, editId = null, toastTimer, pageObserver, scrollObserver, currentLibraryId = 'sample';
+const normalizeSpreadPage = value => spreadMode && value > 1 && value % 2 === 1 ? value - 1 : value;
+function updateSpreadButton(){
+  $('#spread').setAttribute('aria-pressed',String(spreadMode));
+  $('#spread').title=spreadMode?'Tắt chế độ ghép hai trang':'Ghép hai trang cạnh nhau';
+}
 function toast(message) { $('#toast').textContent = message; $('#toast').style.display = 'block'; clearTimeout(toastTimer); toastTimer = setTimeout(() => $('#toast').style.display = 'none', 4000); }
 function persist() { try {localStorage.setItem(key, JSON.stringify(state)); return true;} catch {toast('Bộ nhớ đã đầy hoặc bị chặn. Hãy xuất ghi chú để sao lưu.'); return false;} }
 function tab(name) { document.body.classList.remove('focused'); document.querySelectorAll('.panel').forEach(p => p.hidden = p.id !== name); document.querySelectorAll('[data-tab]').forEach(b => b.classList.toggle('selected', b.dataset.tab === name)); renderLists(); }
@@ -54,6 +59,7 @@ async function openPdf(source, filename, sample = false, libraryId = sample ? 's
     pdf = loaded; docId = pdf.fingerprints[0]; currentLibraryId=libraryId; state.books[docId] ??= {page:1, bookmarks:[]};
     if(sample){state.sampleFingerprint=docId;}else if(libraryId){state.libraryMeta??={};state.libraryMeta[libraryId]={fingerprint:docId,pages:pdf.numPages};}persist();
     pageNo = Math.max(1, Math.min(pdf.numPages, state.books[docId].page || 1)); zoom = 1;
+    spreadMode = filename.toLowerCase() === 'daihatsu gensets engine catalog.pdf'; updateSpreadButton();
     $('#filename').textContent = filename; $('#book-title').textContent = sample ? 'Introduction to Cosmology' : filename.replace(/\.pdf$/i,'');
     $('#book-subtitle').textContent = sample ? 'Barbara Ryden  •  English  •  PDF document' : 'Tài liệu cá nhân  •  PDF document';
     $('#sample strong').textContent=$('#book-title').textContent;$('#sample small').textContent=sample?'Barbara Ryden · PDF':'Tài liệu cá nhân · PDF';
@@ -67,9 +73,12 @@ async function buildPages(targetPage=1) {
   pageObserver?.disconnect(); scrollObserver?.disconnect(); $('#paper').replaceChildren(); $('#status').textContent='Đang chuẩn bị các trang…';
   try {
     const sample=await documentRef.getPage(1); if(token!==generation)return;
-    const base=sample.getViewport({scale:1}), available=Math.max(260,$('#reader').clientWidth-52), scale=Math.min(available/base.width,1.5)*zoom;
+    const base=sample.getViewport({scale:1}), available=Math.max(260,$('#reader').clientWidth-52), gap=14;
+    const pageWidth=spreadMode?(available-gap)/2:available, scale=Math.min(pageWidth/base.width,1.5)*zoom;
+    let spread;
     for(let n=1;n<=documentRef.numPages;n++){
-      const shell=document.createElement('section'); shell.className='pdf-page'; shell.dataset.page=n; shell.dataset.scale=scale; shell.style.width=`${base.width*scale}px`; shell.style.height=`${base.height*scale}px`; shell.setAttribute('aria-label',`Trang ${n}`); shell.innerHTML=`<span class="page-badge">${n}</span>`; $('#paper').append(shell);
+      if(!spreadMode || n===1 || n%2===0){spread=document.createElement('div');spread.className=`pdf-spread ${!spreadMode||n===1?'single-spread':''}`;spread.setAttribute('role','group');spread.setAttribute('aria-label',spreadMode&&n>1?`Trang ${n} và ${Math.min(n+1,documentRef.numPages)}`:`Trang ${n}`);$('#paper').append(spread);}
+      const shell=document.createElement('section'); shell.className='pdf-page'; shell.dataset.page=n; shell.dataset.scale=scale; shell.style.width=`${base.width*scale}px`; shell.style.height=`${base.height*scale}px`; shell.setAttribute('aria-label',`Trang ${n}`); shell.innerHTML=`<span class="page-badge">${n}</span>`; spread.append(shell);
     }
     pageObserver=new IntersectionObserver(entries=>entries.forEach(entry=>{if(entry.isIntersecting)renderPage(entry.target,token);else if(entry.target.dataset.rendered){entry.target.querySelectorAll('canvas,.textLayer,.highlight').forEach(el=>el.remove());delete entry.target.dataset.rendered;}}),{root:$('#reader'),rootMargin:'1200px 0px',threshold:0});
     document.querySelectorAll('.pdf-page').forEach(el=>pageObserver.observe(el));
@@ -91,12 +100,13 @@ async function renderPage(shell,token){
   }catch(error){if(token===generation){shell.innerHTML=`<span class="page-error">Không thể hiển thị trang ${n}</span>`;console.error(error);}}finally{delete shell.dataset.rendering;}
 }
 function updateCurrentPage(entries){
-  const visible=entries.filter(e=>e.isIntersecting);if(!visible.length)return;setCurrentPage(Number(visible.sort((a,b)=>Math.abs(a.boundingClientRect.top)-Math.abs(b.boundingClientRect.top))[0].target.dataset.page));
+  const visible=entries.filter(e=>e.isIntersecting);if(!visible.length)return;setCurrentPage(normalizeSpreadPage(Number(visible.sort((a,b)=>Math.abs(a.boundingClientRect.top)-Math.abs(b.boundingClientRect.top))[0].target.dataset.page)));
 }
-function setCurrentPage(next,force=false){if(!pdf||(!force&&next===pageNo))return;pageNo=next;$('#page-number').value=pageNo;$('#page-status').textContent=`${pageNo} / ${pdf.numPages} TRANG`;$('#progress-bar').style.width=`${pageNo/pdf.numPages*100}%`;$('#progress-text').textContent=`Trang ${pageNo} / ${pdf.numPages} · ${Math.round(pageNo/pdf.numPages*100)}%`;state.books[docId].page=pageNo;persist();updateBookmark();}
+function setCurrentPage(next,force=false){if(!pdf)return;next=normalizeSpreadPage(next);if(!force&&next===pageNo)return;pageNo=next;const last=spreadMode&&pageNo>1?Math.min(pageNo+1,pdf.numPages):pageNo,shown=last>pageNo?`${pageNo}–${last}`:`${pageNo}`;$('#page-number').value=pageNo;$('#page-status').textContent=`${shown} / ${pdf.numPages} TRANG`;$('#progress-bar').style.width=`${last/pdf.numPages*100}%`;$('#progress-text').textContent=`Trang ${shown} / ${pdf.numPages} · ${Math.round(last/pdf.numPages*100)}%`;state.books[docId].page=pageNo;persist();updateBookmark();}
 function navigate(value){if(!pdf)return;const target=Math.max(1,Math.min(pdf.numPages,Math.trunc(Number(value))||1));selection=null;$('#selection-actions').hidden=true;setCurrentPage(target,true);document.querySelector(`.pdf-page[data-page="${target}"]`)?.scrollIntoView({behavior:'smooth',block:'start'});}
 $('#page-number').onchange=e=>navigate(e.target.value);
 $('#zoom-in').onclick=()=>{zoom=Math.min(2,zoom+.1);buildPages(pageNo);};$('#zoom-out').onclick=()=>{zoom=Math.max(.5,zoom-.1);buildPages(pageNo);};$('#fit').onclick=()=>{zoom=1;buildPages(pageNo);};
+$('#spread').onclick=()=>{spreadMode=!spreadMode;pageNo=normalizeSpreadPage(pageNo);updateSpreadButton();buildPages(pageNo);};
 let resizeTimer,lastReaderWidth=0;new ResizeObserver(entries=>{const width=Math.round(entries[0].contentRect.width);if(!pdf||Math.abs(width-lastReaderWidth)<10)return;lastReaderWidth=width;clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>buildPages(pageNo),250);}).observe($('#reader'));
 function updateBookmark() {$('#bookmark').textContent = state.books[docId]?.bookmarks.includes(pageNo) ? '★ Đã đánh dấu' : '☆ Đánh dấu';}
 $('#bookmark').onclick = () => {if(!pdf)return; const marks=state.books[docId].bookmarks; const index=marks.indexOf(pageNo); if(index<0)marks.push(pageNo);else marks.splice(index,1);persist();updateBookmark();renderLists();};
