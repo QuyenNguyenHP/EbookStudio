@@ -4,7 +4,62 @@ Trình đọc PDF cá nhân, giao diện tham khảo Local-AI/web-chat và sao c
 
 ## Chạy
 
-Cần Python 3. Chạy `./start.ps1` trong PowerShell, rồi mở http://127.0.0.1:4173. Có thể chạy trực tiếp `python server.py`. Không dùng `python -m http.server` hoặc mở `index.html` bằng `file://`, vì chức năng lưu PDF vào `Libaries` cần API của `server.py`.
+Cần Python 3. Chạy `./start.ps1` trong PowerShell, rồi mở http://127.0.0.1:1997. Có thể chạy trực tiếp `python server.py`. Không dùng `python -m http.server` hoặc mở `index.html` bằng `file://`, vì chức năng lưu PDF vào `Libaries` cần API của `server.py`.
+
+## Chạy nền bằng systemd (Linux)
+
+Hướng dẫn này giả sử mã nguồn được đặt tại `~/EbookStudio`. Tạo thư mục chứa service và bảo đảm thư viện PDF tồn tại:
+
+```bash
+mkdir -p ~/.config/systemd/user
+mkdir -p ~/EbookStudio/Libaries
+```
+
+Tạo `~/.config/systemd/user/ebookstudio.service` với nội dung:
+
+```ini
+[Unit]
+Description=EbookStudio PDF reader
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/EbookStudio
+ExecStart=/usr/bin/python3 %h/EbookStudio/server.py
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target
+```
+
+Nạp cấu hình, bật dịch vụ khi khởi động và chạy ngay:
+
+```bash
+systemctl --user daemon-reload
+systemctl --user enable --now ebookstudio
+systemctl --user status ebookstudio
+```
+
+Ứng dụng sẽ chạy tại http://127.0.0.1:1997. Xem log bằng:
+
+```bash
+journalctl --user -u ebookstudio -f
+```
+
+Sau khi cập nhật mã nguồn, khởi động lại dịch vụ:
+
+```bash
+systemctl --user restart ebookstudio
+```
+
+Nếu muốn dịch vụ tiếp tục chạy sau khi đăng xuất và tự khởi động cùng máy, bật `linger` một lần:
+
+```bash
+sudo loginctl enable-linger "$USER"
+```
+
+Máy chủ hiện chỉ lắng nghe trên `127.0.0.1`, phù hợp khi truy cập ngay trên máy hoặc đặt sau reverse proxy. Không mở trực tiếp cổng này ra Internet nếu chưa bổ sung xác thực và HTTPS.
 
 ## Tính năng
 

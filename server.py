@@ -120,8 +120,8 @@ class EbookStudioHandler(SimpleHTTPRequestHandler):
 
 if __name__ == "__main__":
     LIBRARY.mkdir(exist_ok=True)
-    server = ThreadingHTTPServer(("127.0.0.1", 4173), EbookStudioHandler)
-    print(f"EbookStudio: http://127.0.0.1:4173", flush=True)
+    server = ThreadingHTTPServer(("127.0.0.1", 1997), EbookStudioHandler)
+    print(f"EbookStudio: http://127.0.0.1:1997", flush=True)
     print(f"Library: {LIBRARY}", flush=True)
     try:
         server.serve_forever()
