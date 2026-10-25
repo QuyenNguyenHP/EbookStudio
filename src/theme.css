@@ -1,0 +1,53 @@
+:root{
+  --dq-orange:#f44911;
+  --dq-blue:#0991df;
+  --dq-bg:#080b12;
+  --dq-panel:#0d111b;
+  --dq-line:#263443;
+  --dq-gradient:linear-gradient(120deg,var(--dq-orange),var(--dq-blue));
+  --dq-gradient-soft:linear-gradient(145deg,#f4491124,#0991df20);
+  background:var(--dq-bg);
+}
+body{background:radial-gradient(circle at 8% 8%,#f4491118,transparent 30%),radial-gradient(circle at 90% 88%,#0991df1c,transparent 34%),var(--dq-bg)}
+::selection{background:#0991df55}
+button:focus-visible,input:focus-visible,textarea:focus-visible,a:focus-visible{outline-color:var(--dq-blue)}
+.app{background:linear-gradient(135deg,#f449110a 0%,transparent 33%,#0991df0c 100%)}
+.sidebar{background:linear-gradient(170deg,#f4491114 0%,#0d111b 37%,#0991df12 100%);border-right-color:#425063}
+.inspector{background:linear-gradient(195deg,#0991df15 0%,#0d111b 43%,#f449110d 100%);border-left-color:#405064}
+main{background:radial-gradient(circle at 0 0,#f449110d,transparent 28%),radial-gradient(circle at 100% 100%,#0991df12,transparent 32%),#090d15}
+header{border-bottom-color:#2c3b4a}
+.brand .blue,.library-eyebrow{background:var(--dq-gradient);background-clip:text;-webkit-background-clip:text;color:transparent}
+.primary{background:var(--dq-gradient);border:0;box-shadow:0 8px 24px #0991df22,0 5px 18px #f449111c}
+.primary:hover{background:linear-gradient(120deg,#ff5a21,#10a7fa);box-shadow:0 10px 28px #0991df33,0 6px 22px #f4491128}
+.nav.active{background:linear-gradient(110deg,#f449111f,#0991df1f);border-color:#526b80;color:#f2f7fb}
+.nav:hover{background:linear-gradient(110deg,#f4491112,#0991df12)}
+.progress,.library-progress{background:linear-gradient(90deg,#f4491128,#0991df28)}
+.progress div,.library-progress span{background:var(--dq-gradient)}
+.cover{background:radial-gradient(circle at 78% 84%,#0991df55,transparent 36%),linear-gradient(145deg,#f4491170,#0b1828 44%,#0991df65);border-color:#62758a}
+.cover span{color:#54b9f0}
+.toolbar{background:linear-gradient(100deg,#f4491112,#111722 40%,#0991df14);border-color:#3e5163}
+.toolbar input,input,textarea{background:#0b111b;border-color:#405164}
+#reader{background:linear-gradient(145deg,#f449110f,#121620 38%,#0991df12);scrollbar-color:#397da4 #111720}
+.pdf-page{box-shadow:0 8px 28px #0009,0 0 0 1px #0991df20}
+.pdf-page .textLayer ::selection{background:#0991df66}
+.highlight{background:#f4491148}
+.pill{color:#9bdcff;background:linear-gradient(110deg,#f4491118,#0991df22);border-color:#406882}
+.tabs{border-bottom-color:#334554}
+.tabs .selected{color:#80d0fb;border-bottom-color:transparent;position:relative}
+.tabs .selected::after{content:"";position:absolute;left:10px;right:10px;bottom:0;height:2px;background:var(--dq-gradient);border-radius:2px}
+#lookup-form,#result,.lookup-panel #selection-actions{border-color:#35485a}
+#lookup-form{background:linear-gradient(110deg,#f449110b,#0991df0d),#0b111b}
+#lookup-form button,.lookup-word button,.lookup-panel .ipa,#selection-actions button,.card button{color:#61c2f6}
+.card{background:linear-gradient(145deg,#f449110d,#111722 48%,#0991df0d);border-color:#35485a}
+blockquote{border-left-color:var(--dq-orange);background:linear-gradient(100deg,#f4491116,#0991df09)}
+#toast{background:linear-gradient(120deg,#5b250f,#124563);border-color:#658099}
+.dot{background:var(--dq-blue);box-shadow:0 0 9px #0991df}
+.library-view{background:radial-gradient(circle at 10% 10%,#f4491133,transparent 34%),radial-gradient(circle at 88% 86%,#0991df38,transparent 38%),#070a10f5}
+.library-shell{background:linear-gradient(145deg,#f449110d,#0d111b 40%,#0991df10);border-color:#455a6e}
+.library-header{background:linear-gradient(105deg,#25140fea,#0d111bf2 42%,#0b2434ed);border-bottom-color:#3b5061}
+.library-cover,.tone-0 .library-cover,.tone-1 .library-cover,.tone-2 .library-cover,.tone-3 .library-cover{background:radial-gradient(circle at 78% 84%,#0991df66,transparent 35%),linear-gradient(145deg,#f44911ad,#142237 51%,#0991df9c);border-color:#687d8f}
+.library-open:hover .library-cover{border-color:#62c8ff;box-shadow:inset 7px 0 #f4491135,7px 12px 25px #0008,0 0 24px #0991df25}
+.library-cover b{color:#7bd0fd}
+.library-add-card{border-color:#486074;background:linear-gradient(145deg,#f4491108,#0991df0a)}
+.library-add-card:hover{background:linear-gradient(145deg,#f449111e,#0991df20);border-color:#6cbce8}
+.library-add-card span{background:var(--dq-gradient);background-clip:text;-webkit-background-clip:text;color:transparent}
