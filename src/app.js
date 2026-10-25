@@ -17,10 +17,11 @@ function updateSpreadButton(){
 }
 function toast(message) { $('#toast').textContent = message; $('#toast').style.display = 'block'; clearTimeout(toastTimer); toastTimer = setTimeout(() => $('#toast').style.display = 'none', 4000); }
 function persist() { try {localStorage.setItem(key, JSON.stringify(state)); return true;} catch {toast('Bộ nhớ đã đầy hoặc bị chặn. Hãy xuất ghi chú để sao lưu.'); return false;} }
-function tab(name) { document.body.classList.remove('focused'); document.querySelectorAll('.panel').forEach(p => p.hidden = p.id !== name); document.querySelectorAll('[data-tab]').forEach(b => b.classList.toggle('selected', b.dataset.tab === name)); renderLists(); }
+function tab(name) { document.querySelectorAll('.panel').forEach(p => p.hidden = p.id !== name); document.querySelectorAll('[data-tab]').forEach(b => b.classList.toggle('selected', b.dataset.tab === name)); renderLists(); }
 document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => tab(b.dataset.tab));
 $('#notes-nav').onclick = () => tab('notes'); $('#vocab-nav').onclick = () => tab('words'); $('#library').onclick = showLibrary;
-$('#focus').onclick = () => document.body.classList.toggle('focused');
+function setFocus(active){document.body.classList.toggle('focused',active);$('#focus').setAttribute('aria-pressed',String(active));$('#focus').title=active?'Thoát chế độ tập trung':'Mở chế độ tập trung';$('#focus span').textContent=active?'Thoát tập trung':'Tập trung';}
+$('#focus').onclick = () => setFocus(!document.body.classList.contains('focused'));
 const formatBytes = bytes => bytes < 1048576 ? `${Math.max(1,Math.round(bytes/1024))} KB` : `${(bytes/1048576).toFixed(1)} MB`;
 const progressFor = (fingerprint, pages) => {
   if(!fingerprint)return {current:0,total:pages||1,percent:0};
@@ -39,7 +40,7 @@ async function renderLibrary(){
     $('#library-empty-add').onclick=()=>$('#file').click();
   }catch(error){console.error(error);grid.innerHTML='<p class="library-loading">Không thể kết nối với thư mục Libaries. Hãy chạy ứng dụng bằng start.ps1.</p>';$('#library-count').textContent='01';}
 }
-async function showLibrary(){document.body.classList.remove('focused');$('#library-view').hidden=false;$('#library-close').hidden=!pdf;document.body.classList.add('library-opened');await renderLibrary();}
+async function showLibrary(){setFocus(false);$('#library-view').hidden=false;$('#library-close').hidden=!pdf;document.body.classList.add('library-opened');await renderLibrary();}
 function closeLibrary(force=false){if(!pdf&&!force)return;$('#library-view').hidden=true;document.body.classList.remove('library-opened');}
 async function openStoredDocument(id){
   try{const document=await getLibraryDocument(id);if(!document)throw new Error('Missing document');closeLibrary(true);await openPdf(new Uint8Array(await document.file.arrayBuffer()),document.name,false,id);}
@@ -60,7 +61,7 @@ async function openPdf(source, filename, sample = false, libraryId = sample ? 's
     if(sample){state.sampleFingerprint=docId;}else if(libraryId){state.libraryMeta??={};state.libraryMeta[libraryId]={fingerprint:docId,pages:pdf.numPages};}persist();
     pageNo = Math.max(1, Math.min(pdf.numPages, state.books[docId].page || 1)); zoom = 1;
     spreadMode = filename.toLowerCase() === 'daihatsu gensets engine catalog.pdf'; updateSpreadButton();
-    $('#filename').textContent = filename; $('#book-title').textContent = sample ? 'Introduction to Cosmology' : filename.replace(/\.pdf$/i,'');
+    $('#book-title').textContent = sample ? 'Introduction to Cosmology' : filename.replace(/\.pdf$/i,'');
     $('#book-subtitle').textContent = sample ? 'Barbara Ryden  •  English  •  PDF document' : 'Tài liệu cá nhân  •  PDF document';
     $('#sample strong').textContent=$('#book-title').textContent;$('#sample small').textContent=sample?'Barbara Ryden · PDF':'Tài liệu cá nhân · PDF';
     $('#sample .cover').innerHTML=sample?'INTRODUCTION<br>TO<br><b>COSMOLOGY</b><i>BARBARA RYDEN</i><span>✦</span>':`PDF DOCUMENT<br><b>${esc(filename.replace(/\.pdf$/i,'').slice(0,24))}</b><i>YOUR LIBRARY</i><span>▤</span>`;
@@ -68,13 +69,19 @@ async function openPdf(source, filename, sample = false, libraryId = sample ? 's
     renderLists(); await buildPages(pageNo);
   } catch(error) {if(token !== loadGeneration) return; $('#status').textContent = 'Không mở được PDF. Tệp có thể bị hỏng hoặc mật khẩu chưa đúng. Hãy mở lại tài liệu.'; console.error(error);}
 }
-async function buildPages(targetPage=1) {
-  if(!pdf)return; const token=++generation, documentRef=pdf;
-  pageObserver?.disconnect(); scrollObserver?.disconnect(); $('#paper').replaceChildren(); $('#status').textContent='Đang chuẩn bị các trang…';
+async function buildPages(targetPage=1,preservePosition=false) {
+  if(!pdf)return; const token=++generation, documentRef=pdf,reader=$('#reader'),paper=$('#paper');
+  const oldShell=document.querySelector(`.pdf-page[data-page="${targetPage}"]`),readerRect=reader.getBoundingClientRect();
+  const oldRect=oldShell?.getBoundingClientRect(),anchor=preservePosition&&oldRect?{
+    x:Math.max(0,Math.min(1,(readerRect.left+reader.clientWidth/2-oldRect.left)/oldRect.width)),
+    y:Math.max(0,Math.min(1,(readerRect.top+reader.clientHeight/2-oldRect.top)/oldRect.height))
+  }:null;
   try {
     const sample=await documentRef.getPage(1); if(token!==generation)return;
     const base=sample.getViewport({scale:1}), available=Math.max(260,$('#reader').clientWidth-52), gap=14;
     const pageWidth=spreadMode?(available-gap)/2:available, scale=Math.min(pageWidth/base.width,1.5)*zoom;
+    pageObserver?.disconnect(); scrollObserver?.disconnect(); paper.replaceChildren(); $('#status').textContent='Đang chuẩn bị các trang…';
+    paper.style.width=`${base.width*scale*(spreadMode?2:1)+(spreadMode?gap:0)}px`;paper.style.minWidth='100%';
     let spread;
     for(let n=1;n<=documentRef.numPages;n++){
       if(!spreadMode || n===1 || n%2===0){spread=document.createElement('div');spread.className=`pdf-spread ${!spreadMode||n===1?'single-spread':''}`;spread.setAttribute('role','group');spread.setAttribute('aria-label',spreadMode&&n>1?`Trang ${n} và ${Math.min(n+1,documentRef.numPages)}`:`Trang ${n}`);$('#paper').append(spread);}
@@ -85,7 +92,12 @@ async function buildPages(targetPage=1) {
     scrollObserver=new IntersectionObserver(updateCurrentPage,{root:$('#reader'),rootMargin:'-35% 0px -55% 0px',threshold:0});
     document.querySelectorAll('.pdf-page').forEach(el=>scrollObserver.observe(el));
     $('#status').textContent=''; $('#zoom-label').textContent=`${Math.round(zoom*100)}%`;setCurrentPage(targetPage,true);
-    requestAnimationFrame(()=>document.querySelector(`.pdf-page[data-page="${targetPage}"]`)?.scrollIntoView({block:'start'}));
+    const target=document.querySelector(`.pdf-page[data-page="${targetPage}"]`),freshReaderRect=reader.getBoundingClientRect(),targetRect=target?.getBoundingClientRect();
+    if(targetRect){
+      if(anchor){reader.scrollLeft+=targetRect.left+anchor.x*targetRect.width-(freshReaderRect.left+reader.clientWidth/2);reader.scrollTop+=targetRect.top+anchor.y*targetRect.height-(freshReaderRect.top+reader.clientHeight/2);}
+      else reader.scrollTop+=targetRect.top-freshReaderRect.top-10;
+    }
+    reader.classList.toggle('pannable',reader.scrollWidth>reader.clientWidth+2);
   } catch(error){if(token===generation){$('#status').textContent='Không dựng được tài liệu. Hãy mở lại PDF.';console.error(error);}}
 }
 async function renderPage(shell,token){
@@ -105,9 +117,14 @@ function updateCurrentPage(entries){
 function setCurrentPage(next,force=false){if(!pdf)return;next=normalizeSpreadPage(next);if(!force&&next===pageNo)return;pageNo=next;const last=spreadMode&&pageNo>1?Math.min(pageNo+1,pdf.numPages):pageNo,shown=last>pageNo?`${pageNo}–${last}`:`${pageNo}`;$('#page-number').value=pageNo;$('#page-status').textContent=`${shown} / ${pdf.numPages} TRANG`;$('#progress-bar').style.width=`${last/pdf.numPages*100}%`;$('#progress-text').textContent=`Trang ${shown} / ${pdf.numPages} · ${Math.round(last/pdf.numPages*100)}%`;state.books[docId].page=pageNo;persist();updateBookmark();}
 function navigate(value){if(!pdf)return;const target=Math.max(1,Math.min(pdf.numPages,Math.trunc(Number(value))||1));selection=null;$('#selection-actions').hidden=true;setCurrentPage(target,true);document.querySelector(`.pdf-page[data-page="${target}"]`)?.scrollIntoView({behavior:'smooth',block:'start'});}
 $('#page-number').onchange=e=>navigate(e.target.value);
-$('#zoom-in').onclick=()=>{zoom=Math.min(2,zoom+.1);buildPages(pageNo);};$('#zoom-out').onclick=()=>{zoom=Math.max(.5,zoom-.1);buildPages(pageNo);};$('#fit').onclick=()=>{zoom=1;buildPages(pageNo);};
+$('#zoom-in').onclick=()=>{zoom=Math.min(2,zoom+.1);buildPages(pageNo,true);};$('#zoom-out').onclick=()=>{zoom=Math.max(.5,zoom-.1);buildPages(pageNo,true);};$('#fit').onclick=()=>{zoom=1;buildPages(pageNo,true);};
 $('#spread').onclick=()=>{spreadMode=!spreadMode;pageNo=normalizeSpreadPage(pageNo);updateSpreadButton();buildPages(pageNo);};
-let resizeTimer,lastReaderWidth=0;new ResizeObserver(entries=>{const width=Math.round(entries[0].contentRect.width);if(!pdf||Math.abs(width-lastReaderWidth)<10)return;lastReaderWidth=width;clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>buildPages(pageNo),250);}).observe($('#reader'));
+let resizeTimer,lastReaderWidth=0;new ResizeObserver(entries=>{const width=Math.round(entries[0].contentRect.width);if(!pdf||Math.abs(width-lastReaderWidth)<10)return;lastReaderWidth=width;clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>buildPages(pageNo,true),250);}).observe($('#reader'));
+let panStart=null;
+$('#reader').addEventListener('pointerdown',e=>{const reader=$('#reader');if(e.button!==0||!reader.classList.contains('pannable')||e.target.closest('.textLayer span'))return;panStart={id:e.pointerId,x:e.clientX,y:e.clientY,left:reader.scrollLeft,top:reader.scrollTop};reader.setPointerCapture(e.pointerId);reader.classList.add('is-panning');e.preventDefault();});
+$('#reader').addEventListener('pointermove',e=>{if(!panStart||e.pointerId!==panStart.id)return;const reader=$('#reader');reader.scrollLeft=panStart.left-(e.clientX-panStart.x);reader.scrollTop=panStart.top-(e.clientY-panStart.y);e.preventDefault();});
+const stopPan=e=>{if(!panStart||e.pointerId!==panStart.id)return;$('#reader').classList.remove('is-panning');panStart=null;};
+$('#reader').addEventListener('pointerup',stopPan);$('#reader').addEventListener('pointercancel',stopPan);
 function updateBookmark() {$('#bookmark').textContent = state.books[docId]?.bookmarks.includes(pageNo) ? '★ Đã đánh dấu' : '☆ Đánh dấu';}
 $('#bookmark').onclick = () => {if(!pdf)return; const marks=state.books[docId].bookmarks; const index=marks.indexOf(pageNo); if(index<0)marks.push(pageNo);else marks.splice(index,1);persist();updateBookmark();renderLists();};
 $('#open').onclick = () => $('#file').click();
@@ -122,7 +139,7 @@ $('#paper').addEventListener('mouseup', () => setTimeout(() => {
   const closestPage=node=>(node.nodeType===Node.ELEMENT_NODE?node:node.parentElement)?.closest('.pdf-page');const pageElement=closestPage(s.anchorNode);if(!pageElement||pageElement!==closestPage(s.focusNode))return;const selectedPage=Number(pageElement.dataset.page);
   const text = s.toString().trim(); if(!text)return; const box = pageElement.getBoundingClientRect();
   const rects = [...s.getRangeAt(0).getClientRects()].filter(r=>r.width>0&&r.height>0).map(r=>({x:(r.left-box.left)/box.width,y:(r.top-box.top)/box.height,w:r.width/box.width,h:r.height/box.height}));
-  selection = {text,page:selectedPage,docId,rects}; $('#query').value = text; $('#selection-actions').hidden = false;const exists=state.highlights.some(item=>selectionKey(item)===selectionKey(selection));$('#selection-highlight').textContent=exists?'◇ Bỏ highlight':'◆ Highlight';positionSelectionMenu(s.getRangeAt(0).getBoundingClientRect());
+  selection = {text,page:selectedPage,docId,rects}; $('#query').value = text; $('#selection-actions').hidden = false;const exists=state.highlights.some(item=>selectionKey(item)===selectionKey(selection));$('#selection-highlight').textContent=exists?'◇ Bỏ highlight':'◆ Highlight';positionSelectionMenu(s.getRangeAt(0).getBoundingClientRect());lookup(text);
 }, 20));
 $('#selection-lookup').onclick=()=>{if(!selection)return;hideSelectionMenu();tab('lookup');lookup(selection.text);};
 $('#selection-note').onclick=beginNoteFromSelection;

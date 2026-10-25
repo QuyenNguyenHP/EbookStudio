@@ -8,14 +8,20 @@ Cần Python 3. Chạy `./start.ps1` trong PowerShell, rồi mở http://127.0.0
 
 ## Chạy nền bằng systemd (Linux)
 
-Hướng dẫn này giả sử mã nguồn được đặt tại `~/EbookStudio`. Tạo thư mục chứa service và bảo đảm thư viện PDF tồn tại:
+Hướng dẫn này giả sử user Linux là `dq` và mã nguồn nằm tại `/home/dq/EbookStudio` (`~/EbookStudio`). Bảo đảm thư viện PDF tồn tại và thuộc quyền sở hữu của user `dq`:
 
 ```bash
-mkdir -p ~/.config/systemd/user
 mkdir -p ~/EbookStudio/Libaries
+sudo chown -R dq:dq /home/dq/EbookStudio
 ```
 
-Tạo `~/.config/systemd/user/ebookstudio.service` với nội dung:
+Tạo system service trực tiếp tại `/etc/systemd/system/ebookstudio.service`:
+
+```bash
+sudo nano /etc/systemd/system/ebookstudio.service
+```
+
+Thêm nội dung sau:
 
 ```ini
 [Unit]
@@ -24,39 +30,35 @@ After=network.target
 
 [Service]
 Type=simple
-WorkingDirectory=%h/EbookStudio
-ExecStart=/usr/bin/python3 %h/EbookStudio/server.py
+User=dq
+Group=dq
+WorkingDirectory=/home/dq/EbookStudio
+ExecStart=/usr/bin/python3 /home/dq/EbookStudio/server.py
 Restart=on-failure
 RestartSec=3
 
 [Install]
-WantedBy=default.target
+WantedBy=multi-user.target
 ```
 
 Nạp cấu hình, bật dịch vụ khi khởi động và chạy ngay:
 
 ```bash
-systemctl --user daemon-reload
-systemctl --user enable --now ebookstudio
-systemctl --user status ebookstudio
+sudo systemctl daemon-reload
+sudo systemctl enable --now ebookstudio
+sudo systemctl status ebookstudio
 ```
 
 Ứng dụng sẽ chạy tại http://127.0.0.1:1997. Xem log bằng:
 
 ```bash
-journalctl --user -u ebookstudio -f
+sudo journalctl -u ebookstudio -f
 ```
 
 Sau khi cập nhật mã nguồn, khởi động lại dịch vụ:
 
 ```bash
-systemctl --user restart ebookstudio
-```
-
-Nếu muốn dịch vụ tiếp tục chạy sau khi đăng xuất và tự khởi động cùng máy, bật `linger` một lần:
-
-```bash
-sudo loginctl enable-linger "$USER"
+sudo systemctl restart ebookstudio
 ```
 
 Máy chủ hiện chỉ lắng nghe trên `127.0.0.1`, phù hợp khi truy cập ngay trên máy hoặc đặt sau reverse proxy. Không mở trực tiếp cổng này ra Internet nếu chưa bổ sung xác thực và HTTPS.
@@ -65,9 +67,9 @@ Máy chủ hiện chỉ lắng nghe trên `127.0.0.1`, phù hợp khi truy cập
 
 - Thư viện là trang chủ. Khi mở ứng dụng, người dùng chọn sách hoặc tài liệu trong gallery rồi mới chuyển sang trình đọc.
 - Mở sẵn Ryden_IntroCosmo.pdf; thêm một hoặc nhiều PDF bằng nút Thêm tài liệu PDF. Máy chủ cục bộ lưu tệp vào `C:\Users\duyqu\Desktop\githup\EbookStudio\Libaries`; gallery Thư viện đọc trực tiếp danh sách PDF từ thư mục này.
-- Cuộn liên tục qua các trang; ứng dụng chỉ dựng những trang gần vùng nhìn để giữ hiệu năng với tài liệu dài. Có thể nhập số trang để cuộn nhanh đến vị trí cần đọc, phóng to/thu nhỏ, vừa chiều rộng và dùng chế độ tập trung.
+- Cuộn liên tục qua các trang; ứng dụng chỉ dựng những trang gần vùng nhìn để giữ hiệu năng với tài liệu dài. Có thể nhập số trang để cuộn nhanh đến vị trí cần đọc, phóng to/thu nhỏ ngay tại điểm đang xem, vừa chiều rộng và dùng chế độ tập trung. Khi tài liệu phóng lớn hơn khung đọc, kéo vùng nền bằng con trỏ bàn tay để di chuyển; vẫn có thể bôi đen trực tiếp trên chữ.
 - Chế độ **Trang đôi** giữ trang bìa đứng riêng rồi ghép các cặp 2–3, 4–5… để xem trọn các bản trải rộng. Chế độ này tự bật với `Daihatsu Gensets Engine Catalog.pdf` và có thể bật/tắt cho mọi tài liệu từ thanh công cụ.
-- Khi bôi đen nội dung PDF, thanh công cụ cạnh đoạn chọn cho phép Tra từ, Highlight hoặc Ghi chú. Chọn lại đúng đoạn đã highlight để bỏ highlight. Bảng tra từ tối giản chỉ hiện từ, IPA, nghĩa, nghe phát âm và lưu từ; hỗ trợ nhập thủ công. Dịch đoạn tối đa 500 byte.
+- Khi bôi đen nội dung PDF, từ hoặc cụm từ được tra và dịch ngay; thanh công cụ cạnh đoạn chọn tiếp tục cho phép Highlight hoặc Ghi chú. Chọn lại đúng đoạn đã highlight để bỏ highlight. Bảng tra từ tối giản chỉ hiện từ, IPA, nghĩa, nghe phát âm và lưu từ; hỗ trợ nhập thủ công. Dịch đoạn tối đa 500 byte. Chế độ tập trung ẩn sidebar thư viện, mở rộng PDF toàn màn hình nhưng vẫn giữ bảng Tra từ, Ghi chú và Từ đã lưu ở bên phải.
 - Lưu từ vựng, ghi chú theo trang, sửa/xóa, tô sáng đoạn đã ghi chú, đánh dấu trang và xuất ghi chú/từ vựng thành Markdown.
 - Lưu tiến độ, từ và ghi chú trong localStorage; lưu PDF nhập vào thư mục `Libaries`. Nhận diện tài liệu bằng fingerprint PDF để giữ liên kết tiến độ và ghi chú. Tệp trùng tên được tự thêm hậu tố `(1)`, `(2)` để không ghi đè.
 
