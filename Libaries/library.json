@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "shelves": [
+    {
+      "id": "de075a6f-7bfb-4d75-95a3-01bb9259b30e",
+      "name": "Thiên văn học"
+    },
+    {
+      "id": "95c76121-3b6a-411a-9b34-63ad9fd797e0",
+      "name": "Marine Engine"
+    },
+    {
+      "id": "general",
+      "name": "Chưa phân loại"
+    }
+  ],
+  "placement": {
+    "sample": "de075a6f-7bfb-4d75-95a3-01bb9259b30e",
+    "6DE18 running.pdf": "95c76121-3b6a-411a-9b34-63ad9fd797e0",
+    "Daihatsu Gensets Engine Catalog.pdf": "95c76121-3b6a-411a-9b34-63ad9fd797e0"
+  },
+  "order": [
+    "Daihatsu Gensets Engine Catalog.pdf",
+    "6DE18 running.pdf",
+    "sample",
+    "su-viet-12-khuc-trang-ca.pdf"
+  ],
+  "updatedAt": "2026-10-25T14:02:28.853Z"
+}

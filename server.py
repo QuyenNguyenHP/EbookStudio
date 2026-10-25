@@ -14,6 +14,7 @@ from urllib.parse import parse_qs, quote, urlparse
 ROOT = Path(__file__).resolve().parent
 LIBRARY = ROOT / "Libaries"
 TRASH = LIBRARY / ".Trash"
+LIBRARY_LAYOUT = LIBRARY / "library.json"
 SAMPLE_NAME = "Ryden_IntroCosmo.pdf"
 MAX_REQUEST = 1024 * 1024 * 1024
 
@@ -60,6 +61,12 @@ class EbookStudioHandler(SimpleHTTPRequestHandler):
 
     def do_GET(self):
         parsed = urlparse(self.path)
+        if parsed.path == "/api/library/layout":
+            try:
+                payload = json.loads(LIBRARY_LAYOUT.read_text(encoding="utf-8")) if LIBRARY_LAYOUT.exists() else {}
+            except (OSError, json.JSONDecodeError):
+                payload = {}
+            return self.json_response(payload)
         if parsed.path == "/api/library":
             LIBRARY.mkdir(exist_ok=True)
             documents = [document_info(path) for path in LIBRARY.glob("*.pdf") if path.name != SAMPLE_NAME]
@@ -117,6 +124,27 @@ class EbookStudioHandler(SimpleHTTPRequestHandler):
                 if temporary and temporary.exists():
                     temporary.unlink(missing_ok=True)
         return self.json_response({"saved": saved, "errors": errors}, 201 if saved else 400)
+
+    def do_PUT(self):
+        if urlparse(self.path).path != "/api/library/layout":
+            return self.send_error(404)
+        length = int(self.headers.get("Content-Length", "0") or 0)
+        if length <= 0 or length > 1024 * 1024:
+            return self.json_response({"error": "Dữ liệu thư viện không hợp lệ."}, 413)
+        try:
+            payload = json.loads(self.rfile.read(length).decode("utf-8"))
+            if not isinstance(payload.get("shelves"), list) or not isinstance(payload.get("placement"), dict) or not isinstance(payload.get("order"), list):
+                raise ValueError("Invalid library layout")
+            LIBRARY.mkdir(exist_ok=True)
+            with tempfile.NamedTemporaryFile(dir=LIBRARY, prefix=".library-", suffix=".tmp", mode="w", encoding="utf-8", delete=False) as output:
+                temporary = Path(output.name)
+                json.dump(payload, output, ensure_ascii=False, indent=2)
+            os.replace(temporary, LIBRARY_LAYOUT)
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError) as error:
+            if 'temporary' in locals() and temporary.exists():
+                temporary.unlink(missing_ok=True)
+            return self.json_response({"error": str(error)}, 400)
+        return self.json_response({"saved": True})
 
     def do_DELETE(self):
         parsed = urlparse(self.path)
