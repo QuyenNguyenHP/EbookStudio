@@ -13,6 +13,7 @@ from urllib.parse import parse_qs, quote, urlparse
 
 ROOT = Path(__file__).resolve().parent
 LIBRARY = ROOT / "Libaries"
+TRASH = LIBRARY / ".Trash"
 SAMPLE_NAME = "Ryden_IntroCosmo.pdf"
 MAX_REQUEST = 1024 * 1024 * 1024
 
@@ -116,6 +117,28 @@ class EbookStudioHandler(SimpleHTTPRequestHandler):
                 if temporary and temporary.exists():
                     temporary.unlink(missing_ok=True)
         return self.json_response({"saved": saved, "errors": errors}, 201 if saved else 400)
+
+    def do_DELETE(self):
+        parsed = urlparse(self.path)
+        if parsed.path != "/api/library":
+            return self.send_error(404)
+        name = parse_qs(parsed.query).get("name", [""])[0]
+        if Path(name).name == SAMPLE_NAME:
+            return self.json_response({"error": "Không thể xóa tài liệu mẫu."}, 403)
+        target = (LIBRARY / Path(name).name).resolve()
+        if target.parent != LIBRARY.resolve() or not target.is_file() or target.suffix.lower() != ".pdf":
+            return self.json_response({"error": "Không tìm thấy tài liệu PDF."}, 404)
+        try:
+            TRASH.mkdir(exist_ok=True)
+            destination = TRASH / target.name
+            stem, suffix, index = destination.stem, destination.suffix, 1
+            while destination.exists():
+                destination = TRASH / f"{stem} ({index}){suffix}"
+                index += 1
+            os.replace(target, destination)
+        except OSError as error:
+            return self.json_response({"error": str(error)}, 500)
+        return self.json_response({"deleted": target.name, "recoverableFrom": str(destination)})
 
 
 if __name__ == "__main__":

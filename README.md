@@ -65,7 +65,7 @@ Máy chủ hiện chỉ lắng nghe trên `127.0.0.1`, phù hợp khi truy cập
 
 ## Tính năng
 
-- Thư viện là trang chủ. Khi mở ứng dụng, người dùng chọn sách hoặc tài liệu trong gallery rồi mới chuyển sang trình đọc.
+- Thư viện là trang chủ. Khi mở ứng dụng, người dùng có thể tìm nhanh theo tên sách/tài liệu rồi chọn nội dung trong gallery để chuyển sang trình đọc. Form **Chủ đề mới** tạo các hàng sách; có thể kéo tay nắm ở tiêu đề để sắp xếp chủ đề và kéo thả sách để đổi vị trí hoặc chuyển hàng. Hàng **Chưa phân loại** luôn nằm cuối. Có thể xóa PDF khỏi thư viện sau bước xác nhận; tệp bị xóa được chuyển vào `Libaries/.Trash` để có thể khôi phục và tài liệu mẫu được bảo vệ khỏi thao tác xóa.
 - Mở sẵn Ryden_IntroCosmo.pdf; thêm một hoặc nhiều PDF bằng nút Thêm tài liệu PDF. Máy chủ cục bộ lưu tệp vào `C:\Users\duyqu\Desktop\githup\EbookStudio\Libaries`; gallery Thư viện đọc trực tiếp danh sách PDF từ thư mục này.
 - Cuộn liên tục qua các trang; ứng dụng chỉ dựng những trang gần vùng nhìn để giữ hiệu năng với tài liệu dài. Có thể nhập số trang để cuộn nhanh đến vị trí cần đọc, phóng to/thu nhỏ ngay tại điểm đang xem, vừa chiều rộng và dùng chế độ tập trung. Khi tài liệu phóng lớn hơn khung đọc, kéo vùng nền bằng con trỏ bàn tay để di chuyển; vẫn có thể bôi đen trực tiếp trên chữ.
 - Chế độ **Trang đôi** giữ trang bìa đứng riêng rồi ghép các cặp 2–3, 4–5… để xem trọn các bản trải rộng. Chế độ này tự bật với `Daihatsu Gensets Engine Catalog.pdf` và có thể bật/tắt cho mọi tài liệu từ thanh công cụ.

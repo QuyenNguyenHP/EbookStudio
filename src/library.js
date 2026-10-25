@@ -19,3 +19,10 @@ export async function saveDocuments(files) {
   if (!response.ok) throw new Error(result.error || result.errors?.join('\n') || `Upload API ${response.status}`);
   return result;
 }
+
+export async function deleteDocument(id) {
+  const response = await fetch(`/api/library?name=${encodeURIComponent(id)}`, {method: 'DELETE'});
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.error || `Delete API ${response.status}`);
+  return result;
+}
