@@ -55,9 +55,9 @@ async function renderLibrary(){
   try{
     await hydrateLibraryLayout();
     const documents=await listDocuments();
-    $('#library-count').textContent=String(documents.length+1).padStart(2,'0');
+    $('#library-count').textContent=String(documents.length).padStart(2,'0');
     const sampleProgress=progressFor(state.sampleFingerprint,301);
-    const items=[{id:'sample',name:'Introduction to Cosmology',sample:true,size:0,addedAt:''},...documents];
+    const items=[...documents];
     const known=new Set(items.map(item=>item.id));state.libraryOrder=state.libraryOrder.filter(id=>known.has(id));
     for(const item of items)if(!state.libraryOrder.includes(item.id))state.libraryOrder.push(item.id);
     const shelfIds=new Set(state.libraryShelves.map(shelf=>shelf.id));for(const id of Object.keys(state.libraryPlacement))if(!known.has(id)||!shelfIds.has(state.libraryPlacement[id]))delete state.libraryPlacement[id];
@@ -71,7 +71,7 @@ async function renderLibrary(){
     $('#library-empty-add').onclick=()=>$('#file').click();
     filterLibrary($('#library-search').value);
     observeLibraryCovers();
-  }catch(error){console.error(error);grid.innerHTML='<p class="library-loading">Không thể kết nối với thư mục Libaries. Hãy chạy ứng dụng bằng start.ps1.</p>';$('#library-count').textContent='01';}
+  }catch(error){console.error(error);grid.innerHTML='<p class="library-loading">Không thể kết nối với thư mục Libaries. Hãy chạy ứng dụng bằng start.ps1.</p>';$('#library-count').textContent='00';}
 }
 async function showLibrary(){setFocus(false);outlineDrawer.hidden=true;$('#library-view').hidden=false;$('#library-close').hidden=!pdf;document.body.classList.add('library-opened');await renderLibrary();}
 function closeLibrary(force=false){if(!pdf&&!force)return;$('#library-view').hidden=true;document.body.classList.remove('library-opened');}

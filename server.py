@@ -12,12 +12,9 @@ from pathlib import Path
 from urllib.parse import parse_qs, quote, urlparse
 
 ROOT = Path(__file__).resolve().parent
-SAMPLE_NAME = "Ryden_IntroCosmo.pdf"
-DEFAULT_LIBRARY = ROOT / "Libaries"
-LIBRARY = Path(os.environ.get("EBOOKSTUDIO_LIBRARY", DEFAULT_LIBRARY)).expanduser().resolve()
+LIBRARY = ROOT / "Libaries"
 TRASH = LIBRARY / ".Trash"
 LIBRARY_LAYOUT = LIBRARY / "library.json"
-BUNDLED_SAMPLE = DEFAULT_LIBRARY / SAMPLE_NAME
 MAX_REQUEST = 1024 * 1024 * 1024
 
 
@@ -52,6 +49,14 @@ class EbookStudioHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(ROOT), **kwargs)
 
+    def end_headers(self):
+        path = urlparse(self.path).path
+        if not path.startswith("/api/") and (path == "/" or Path(path).suffix.lower() in {".html", ".js", ".mjs", ".css"}):
+            self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+            self.send_header("Pragma", "no-cache")
+            self.send_header("Expires", "0")
+        super().end_headers()
+
     def json_response(self, payload, status=200):
         data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
@@ -71,16 +76,13 @@ class EbookStudioHandler(SimpleHTTPRequestHandler):
             return self.json_response(payload)
         if parsed.path == "/api/library":
             LIBRARY.mkdir(exist_ok=True)
-            documents = [document_info(path) for path in LIBRARY.glob("*.pdf") if path.name != SAMPLE_NAME]
+            documents = [document_info(path) for path in LIBRARY.glob("*.pdf")]
             documents.sort(key=lambda item: item["addedAt"], reverse=True)
             return self.json_response({"documents": documents, "directory": str(LIBRARY)})
         if parsed.path == "/api/library/file":
             name = parse_qs(parsed.query).get("name", [""])[0]
             target = (LIBRARY / Path(name).name).resolve()
-            if Path(name).name == SAMPLE_NAME and not target.is_file() and BUNDLED_SAMPLE.is_file():
-                target = BUNDLED_SAMPLE.resolve()
-            allowed_parent = target.parent in {LIBRARY.resolve(), DEFAULT_LIBRARY.resolve()}
-            if not allowed_parent or not target.is_file() or target.suffix.lower() != ".pdf":
+            if target.parent != LIBRARY.resolve() or not target.is_file() or target.suffix.lower() != ".pdf":
                 return self.send_error(404, "PDF not found")
             stat = target.stat()
             self.send_response(200)
@@ -156,8 +158,6 @@ class EbookStudioHandler(SimpleHTTPRequestHandler):
         if parsed.path != "/api/library":
             return self.send_error(404)
         name = parse_qs(parsed.query).get("name", [""])[0]
-        if Path(name).name == SAMPLE_NAME:
-            return self.json_response({"error": "Không thể xóa tài liệu mẫu."}, 403)
         target = (LIBRARY / Path(name).name).resolve()
         if target.parent != LIBRARY.resolve() or not target.is_file() or target.suffix.lower() != ".pdf":
             return self.json_response({"error": "Không tìm thấy tài liệu PDF."}, 404)

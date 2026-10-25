@@ -8,12 +8,11 @@ Cần Python 3. Chạy `./start.ps1` trong PowerShell, rồi mở http://127.0.0
 
 ## Chạy nền bằng systemd (Linux)
 
-Hướng dẫn này giả sử user Linux là `dq` và mã nguồn nằm tại `/home/dq/EbookStudio` (`~/EbookStudio`). Dữ liệu PDF nên nằm ngoài Git tại `/home/dq/EbookStudioData/Libaries`, để `git fetch`, checkout, reset hoặc triển khai lại mã nguồn không ảnh hưởng tới thư viện:
+Hướng dẫn này giả sử user Linux là `dq` và mã nguồn nằm tại `/home/dq/EbookStudio` (`~/EbookStudio`). Thư mục `Libaries` được Git bỏ qua; clone mới chỉ có `.gitkeep` và chưa có tài liệu. Tạo thư mục và cấp quyền ghi cho service:
 
 ```bash
-mkdir -p ~/EbookStudioData/Libaries
-cp -an ~/EbookStudio/Libaries/. ~/EbookStudioData/Libaries/
-sudo chown -R dq:dq /home/dq/EbookStudio /home/dq/EbookStudioData
+mkdir -p ~/EbookStudio/Libaries
+sudo chown -R dq:dq /home/dq/EbookStudio
 ```
 
 Tạo system service trực tiếp tại `/etc/systemd/system/ebookstudio.service`:
@@ -34,7 +33,6 @@ Type=simple
 User=dq
 Group=dq
 WorkingDirectory=/home/dq/EbookStudio
-Environment=EBOOKSTUDIO_LIBRARY=/home/dq/EbookStudioData/Libaries
 ExecStart=/usr/bin/python3 /home/dq/EbookStudio/server.py
 Restart=on-failure
 RestartSec=3
@@ -65,12 +63,26 @@ sudo systemctl restart ebookstudio
 
 Máy chủ hiện chỉ lắng nghe trên `127.0.0.1`, phù hợp khi truy cập ngay trên máy hoặc đặt sau reverse proxy. Không mở trực tiếp cổng này ra Internet nếu chưa bổ sung xác thực và HTTPS.
 
-`git fetch` chỉ tải metadata/objects và bình thường không thay đổi working tree. Nếu quy trình cập nhật có `git reset --hard`, `git clean` hoặc thay mới thư mục repository, biến `EBOOKSTUDIO_LIBRARY` ở trên vẫn giữ toàn bộ PDF và `library.json` bên ngoài Git. Sau khi sửa unit, chạy `sudo systemctl daemon-reload && sudo systemctl restart ebookstudio`.
+Git bỏ qua toàn bộ nội dung runtime trong `Libaries`, ngoại trừ `.gitkeep`. `git pull` và `git reset --hard` không tác động tới các PDF không được theo dõi. Không chạy `git clean -fdx`, vì tùy chọn `-x` cố ý xóa cả file đã được `.gitignore` bảo vệ.
+
+Để cập nhật mã nguồn đang chạy, `git fetch origin` là chưa đủ. Kiểm tra nhánh hiện tại rồi fast-forward working tree, sau đó khởi động lại service:
+
+```bash
+cd ~/EbookStudio
+git status
+git branch --show-current
+git pull --ff-only origin main
+sudo systemctl daemon-reload
+sudo systemctl restart ebookstudio
+sudo systemctl status ebookstudio
+```
+
+Kiểm tra bằng `sudo journalctl -u ebookstudio -n 20 --no-pager`; log cần hiện `Library: /home/dq/EbookStudio/Libaries`. Sau khi cập nhật giao diện, tải lại trình duyệt bằng `Ctrl+F5`; các tệp HTML, JavaScript và CSS được gửi với `no-cache` để tránh giữ bản cũ.
 
 ## Tính năng
 
-- Thư viện là trang chủ. Trang đầu của mỗi PDF được render đúng tỷ lệ và fit vào thẻ để làm ảnh bìa; ảnh chỉ được tạo khi thẻ đi vào vùng nhìn và được cache trong phiên. Chủ đề, vị trí sách và thứ tự các hàng được lưu dùng chung tại `Libaries/library.json`, với localStorage làm bản dự phòng khi máy chủ không khả dụng. Người dùng có thể tìm nhanh theo tên sách/tài liệu rồi chọn nội dung trong gallery để chuyển sang trình đọc. Form **Chủ đề mới** tạo các hàng sách; có thể kéo tay nắm ở tiêu đề để sắp xếp chủ đề và kéo thả trực tiếp thẻ sách vào hàng mong muốn để phân loại hoặc đổi vị trí. Hàng **Chưa phân loại** luôn nằm cuối. Có thể xóa PDF khỏi thư viện sau bước xác nhận; tệp bị xóa được chuyển vào `Libaries/.Trash` để có thể khôi phục và tài liệu mẫu được bảo vệ khỏi thao tác xóa.
-- Mở sẵn Ryden_IntroCosmo.pdf; thêm một hoặc nhiều PDF bằng nút Thêm tài liệu PDF. Máy chủ cục bộ lưu tệp vào `C:\Users\duyqu\Desktop\githup\EbookStudio\Libaries`; gallery Thư viện đọc trực tiếp danh sách PDF từ thư mục này.
+- Thư viện là trang chủ. Clone mới không có tài liệu; người dùng tự tải PDF lên `Libaries`. Trang đầu của mỗi PDF được render đúng tỷ lệ và fit vào thẻ để làm ảnh bìa; ảnh chỉ được tạo khi thẻ đi vào vùng nhìn và được cache trong phiên. Chủ đề, vị trí sách và thứ tự các hàng được lưu tại `Libaries/library.json`, với localStorage làm bản dự phòng khi máy chủ không khả dụng. Người dùng có thể tìm nhanh theo tên sách/tài liệu rồi chọn nội dung trong gallery để chuyển sang trình đọc. Form **Chủ đề mới** tạo các hàng sách; có thể kéo tay nắm ở tiêu đề để sắp xếp chủ đề và kéo thả trực tiếp thẻ sách vào hàng mong muốn để phân loại hoặc đổi vị trí. Hàng **Chưa phân loại** luôn nằm cuối. Có thể xóa PDF khỏi thư viện sau bước xác nhận; tệp bị xóa được chuyển vào `Libaries/.Trash` để có thể khôi phục.
+- Thêm một hoặc nhiều PDF bằng nút Thêm tài liệu PDF. Máy chủ lưu tệp trực tiếp vào thư mục `Libaries`; gallery Thư viện đọc danh sách PDF từ thư mục này.
 - Cuộn liên tục qua các trang; ứng dụng chỉ dựng những trang gần vùng nhìn để giữ hiệu năng với tài liệu dài. Nếu PDF cung cấp Outline/Bookmarks, nút **Mục lục** hiển thị các heading nhiều cấp và cho phép chuyển thẳng tới phần tương ứng. Thanh navigation cũng có nút về Thư viện, trang trước/trang sau, nhập số trang và phím tắt `Alt+←` / `Alt+→`; chế độ trang đôi tự chuyển theo từng cặp. Có thể phóng to/thu nhỏ ngay tại điểm đang xem, vừa chiều rộng và dùng chế độ tập trung. Khi tài liệu phóng lớn hơn khung đọc, kéo vùng nền bằng con trỏ bàn tay để di chuyển; vẫn có thể bôi đen trực tiếp trên chữ.
 - Chế độ **Trang đôi** giữ trang bìa đứng riêng rồi ghép các cặp 2–3, 4–5… để xem trọn các bản trải rộng. Chế độ này tự bật với `Daihatsu Gensets Engine Catalog.pdf` và có thể bật/tắt cho mọi tài liệu từ thanh công cụ.
 - Khi bôi đen nội dung PDF, từ hoặc cụm từ được tra và dịch ngay; thanh công cụ cạnh đoạn chọn tiếp tục cho phép Highlight hoặc Ghi chú. Chọn lại đúng đoạn đã highlight để bỏ highlight. Bảng tra từ tối giản chỉ hiện từ, IPA, nghĩa, nghe phát âm và lưu từ; hỗ trợ nhập thủ công. Dịch đoạn tối đa 500 byte. Chế độ tập trung ẩn sidebar thư viện, mở rộng PDF toàn màn hình nhưng vẫn giữ bảng Tra từ, Ghi chú và Từ đã lưu ở bên phải.

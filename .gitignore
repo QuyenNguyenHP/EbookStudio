@@ -1,12 +1,6 @@
 # Runtime library data must not be managed by Git.
-Libaries/*.pdf
-Libaries/library.json
-Libaries/.Trash/
-Libaries/.upload-*.tmp
-Libaries/.library-*.tmp
-
-# Keep the bundled sample document if it is intentionally tracked already.
-!Libaries/Ryden_IntroCosmo.pdf
+Libaries/*
+!Libaries/.gitkeep
 
 __pycache__/
 *.pyc
