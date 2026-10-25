@@ -8,11 +8,12 @@ Cần Python 3. Chạy `./start.ps1` trong PowerShell, rồi mở http://127.0.0
 
 ## Chạy nền bằng systemd (Linux)
 
-Hướng dẫn này giả sử user Linux là `dq` và mã nguồn nằm tại `/home/dq/EbookStudio` (`~/EbookStudio`). Bảo đảm thư viện PDF tồn tại và thuộc quyền sở hữu của user `dq`:
+Hướng dẫn này giả sử user Linux là `dq` và mã nguồn nằm tại `/home/dq/EbookStudio` (`~/EbookStudio`). Dữ liệu PDF nên nằm ngoài Git tại `/home/dq/EbookStudioData/Libaries`, để `git fetch`, checkout, reset hoặc triển khai lại mã nguồn không ảnh hưởng tới thư viện:
 
 ```bash
-mkdir -p ~/EbookStudio/Libaries
-sudo chown -R dq:dq /home/dq/EbookStudio
+mkdir -p ~/EbookStudioData/Libaries
+cp -an ~/EbookStudio/Libaries/. ~/EbookStudioData/Libaries/
+sudo chown -R dq:dq /home/dq/EbookStudio /home/dq/EbookStudioData
 ```
 
 Tạo system service trực tiếp tại `/etc/systemd/system/ebookstudio.service`:
@@ -33,6 +34,7 @@ Type=simple
 User=dq
 Group=dq
 WorkingDirectory=/home/dq/EbookStudio
+Environment=EBOOKSTUDIO_LIBRARY=/home/dq/EbookStudioData/Libaries
 ExecStart=/usr/bin/python3 /home/dq/EbookStudio/server.py
 Restart=on-failure
 RestartSec=3
@@ -62,6 +64,8 @@ sudo systemctl restart ebookstudio
 ```
 
 Máy chủ hiện chỉ lắng nghe trên `127.0.0.1`, phù hợp khi truy cập ngay trên máy hoặc đặt sau reverse proxy. Không mở trực tiếp cổng này ra Internet nếu chưa bổ sung xác thực và HTTPS.
+
+`git fetch` chỉ tải metadata/objects và bình thường không thay đổi working tree. Nếu quy trình cập nhật có `git reset --hard`, `git clean` hoặc thay mới thư mục repository, biến `EBOOKSTUDIO_LIBRARY` ở trên vẫn giữ toàn bộ PDF và `library.json` bên ngoài Git. Sau khi sửa unit, chạy `sudo systemctl daemon-reload && sudo systemctl restart ebookstudio`.
 
 ## Tính năng
 

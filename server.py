@@ -12,10 +12,12 @@ from pathlib import Path
 from urllib.parse import parse_qs, quote, urlparse
 
 ROOT = Path(__file__).resolve().parent
-LIBRARY = ROOT / "Libaries"
+SAMPLE_NAME = "Ryden_IntroCosmo.pdf"
+DEFAULT_LIBRARY = ROOT / "Libaries"
+LIBRARY = Path(os.environ.get("EBOOKSTUDIO_LIBRARY", DEFAULT_LIBRARY)).expanduser().resolve()
 TRASH = LIBRARY / ".Trash"
 LIBRARY_LAYOUT = LIBRARY / "library.json"
-SAMPLE_NAME = "Ryden_IntroCosmo.pdf"
+BUNDLED_SAMPLE = DEFAULT_LIBRARY / SAMPLE_NAME
 MAX_REQUEST = 1024 * 1024 * 1024
 
 
@@ -75,7 +77,10 @@ class EbookStudioHandler(SimpleHTTPRequestHandler):
         if parsed.path == "/api/library/file":
             name = parse_qs(parsed.query).get("name", [""])[0]
             target = (LIBRARY / Path(name).name).resolve()
-            if target.parent != LIBRARY.resolve() or not target.is_file() or target.suffix.lower() != ".pdf":
+            if Path(name).name == SAMPLE_NAME and not target.is_file() and BUNDLED_SAMPLE.is_file():
+                target = BUNDLED_SAMPLE.resolve()
+            allowed_parent = target.parent in {LIBRARY.resolve(), DEFAULT_LIBRARY.resolve()}
+            if not allowed_parent or not target.is_file() or target.suffix.lower() != ".pdf":
                 return self.send_error(404, "PDF not found")
             stat = target.stat()
             self.send_response(200)
