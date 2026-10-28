@@ -15,15 +15,14 @@
     }
   ],
   "placement": {
-    "sample": "de075a6f-7bfb-4d75-95a3-01bb9259b30e",
     "6DE18 running.pdf": "95c76121-3b6a-411a-9b34-63ad9fd797e0",
     "Daihatsu Gensets Engine Catalog.pdf": "95c76121-3b6a-411a-9b34-63ad9fd797e0"
   },
   "order": [
     "Daihatsu Gensets Engine Catalog.pdf",
     "6DE18 running.pdf",
-    "sample",
-    "su-viet-12-khuc-trang-ca.pdf"
+    "su-viet-12-khuc-trang-ca.pdf",
+    "Ryden_IntroCosmo.pdf"
   ],
-  "updatedAt": "2026-10-25T14:18:33.196Z"
+  "updatedAt": "2026-10-28T12:28:17.567Z"
 }

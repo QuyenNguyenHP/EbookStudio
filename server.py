@@ -1,6 +1,14 @@
 from __future__ import annotations
 
-import cgi
+try:
+    import cgi
+except ModuleNotFoundError as error:
+    if error.name != "cgi":
+        raise
+    raise SystemExit(
+        "Missing upload dependency. Activate your virtual environment, then run: "
+        "python -m pip install -r requirements.txt"
+    ) from None
 import json
 import os
 import re
@@ -9,6 +17,7 @@ import tempfile
 from datetime import datetime, timezone
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from threading import Lock
 from urllib.parse import parse_qs, quote, urlparse
 
 ROOT = Path(__file__).resolve().parent
@@ -16,6 +25,27 @@ LIBRARY = ROOT / "Libaries"
 TRASH = LIBRARY / ".Trash"
 LIBRARY_LAYOUT = LIBRARY / "library.json"
 MAX_REQUEST = 1024 * 1024 * 1024
+READER_DATA = LIBRARY / "reader-data.json"
+READER_LOCK = Lock()
+
+
+def read_reader_data():
+    if not READER_DATA.exists():
+        return {"revision": 0, "notes": [], "words": []}
+    data = json.loads(READER_DATA.read_text(encoding="utf-8"))
+    validate_reader_data(data)
+    return data
+
+
+def validate_reader_data(data):
+    if not isinstance(data, dict) or type(data.get("revision")) is not int or data["revision"] < 0:
+        raise ValueError("Invalid reader data revision")
+    for field in ("notes", "words"):
+        items = data.get(field)
+        if not isinstance(items, list) or any(not isinstance(item, dict) or not isinstance(item.get("id"), str) for item in items):
+            raise ValueError(f"Invalid {field}")
+        if len({item["id"] for item in items}) != len(items):
+            raise ValueError(f"Duplicate IDs in {field}")
 
 
 def safe_name(value: str) -> str:
@@ -68,6 +98,13 @@ class EbookStudioHandler(SimpleHTTPRequestHandler):
 
     def do_GET(self):
         parsed = urlparse(self.path)
+        if parsed.path == "/api/reader-data":
+            try:
+                with READER_LOCK:
+                    payload = read_reader_data()
+                return self.json_response(payload)
+            except (OSError, ValueError) as error:
+                return self.json_response({"error": str(error)}, 500)
         if parsed.path == "/api/library/layout":
             try:
                 payload = json.loads(LIBRARY_LAYOUT.read_text(encoding="utf-8")) if LIBRARY_LAYOUT.exists() else {}
@@ -133,6 +170,32 @@ class EbookStudioHandler(SimpleHTTPRequestHandler):
         return self.json_response({"saved": saved, "errors": errors}, 201 if saved else 400)
 
     def do_PUT(self):
+        if urlparse(self.path).path == "/api/reader-data":
+            temporary = None
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+                if not 0 < length <= 16 * 1024 * 1024:
+                    return self.json_response({"error": "Reader data too large or empty"}, 413)
+                payload = json.loads(self.rfile.read(length).decode("utf-8"))
+                validate_reader_data(payload)
+                with READER_LOCK:
+                    current = read_reader_data()
+                    if payload["revision"] != current["revision"]:
+                        return self.json_response({"error": "Reader data changed in another tab. Reload before saving."}, 409)
+                    payload = {"revision": current["revision"] + 1, "notes": payload["notes"], "words": payload["words"]}
+                    LIBRARY.mkdir(exist_ok=True)
+                    with tempfile.NamedTemporaryFile(dir=LIBRARY, prefix=".reader-", suffix=".tmp", mode="w", encoding="utf-8", delete=False) as output:
+                        temporary = Path(output.name)
+                        json.dump(payload, output, ensure_ascii=False, indent=2)
+                    os.replace(temporary, READER_DATA)
+                return self.json_response({"revision": payload["revision"]})
+            except (UnicodeDecodeError, ValueError) as error:
+                return self.json_response({"error": str(error)}, 400)
+            except OSError as error:
+                return self.json_response({"error": str(error)}, 500)
+            finally:
+                if temporary and temporary.exists():
+                    temporary.unlink(missing_ok=True)
         if urlparse(self.path).path != "/api/library/layout":
             return self.send_error(404)
         length = int(self.headers.get("Content-Length", "0") or 0)

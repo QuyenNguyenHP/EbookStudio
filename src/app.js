@@ -1,3 +1,4 @@
+import {createReaderStore} from './reader-data.js';
 import {glossary} from './glossary.js';
 import {normalizeWord, isSingleWord, localPronunciation, onlinePronunciation} from './pronunciation.js';
 import {listDocuments, getDocument as getLibraryDocument, saveDocuments, deleteDocument, loadLibraryLayout, saveLibraryLayout} from './library.js';
@@ -24,7 +25,26 @@ function updateSpreadButton(){
   $('#spread').title=spreadMode?'Tắt chế độ ghép hai trang':'Ghép hai trang cạnh nhau';
 }
 function toast(message) { $('#toast').textContent = message; $('#toast').style.display = 'block'; clearTimeout(toastTimer); toastTimer = setTimeout(() => $('#toast').style.display = 'none', 4000); }
-function persist() { try {localStorage.setItem(key, JSON.stringify(state)); return true;} catch {toast('Bộ nhớ đã đầy hoặc bị chặn. Hãy xuất ghi chú để sao lưu.'); return false;} }
+const readerStore = createReaderStore(state, message => {
+  toast(message);
+  let status = document.querySelector('#reader-save-status');
+  if (!status) {
+    status = document.createElement('div');
+    status.id = 'reader-save-status';
+    status.setAttribute('role', 'alert');
+    status.style.cssText = 'position:fixed;bottom:12px;left:12px;max-width:440px;padding:12px;background:#fff3cd;color:#664d03;z-index:10000;border-radius:8px';
+    document.body.append(status);
+  }
+  status.textContent = message;
+});
+await readerStore.load();
+function persist() {
+  try { localStorage.setItem(key, JSON.stringify(state)); } catch {}
+  return readerStore.save().then(saved => {
+    if (saved) document.querySelector('#reader-save-status')?.remove();
+    return saved;
+  });
+}
 async function hydrateLibraryLayout(){if(libraryLayoutLoaded)return;libraryLayoutLoaded=true;try{const layout=await loadLibraryLayout();if(Array.isArray(layout.shelves)&&layout.shelves.length)state.libraryShelves=layout.shelves;if(layout.placement&&typeof layout.placement==='object')state.libraryPlacement=layout.placement;if(Array.isArray(layout.order))state.libraryOrder=layout.order;persist();}catch(error){console.warn('Dùng bố cục thư viện trong trình duyệt vì chưa đọc được library.json.',error);}}
 function persistLibraryLayout(){persist();clearTimeout(libraryLayoutTimer);libraryLayoutTimer=setTimeout(()=>saveLibraryLayout({version:1,shelves:state.libraryShelves,placement:state.libraryPlacement,order:state.libraryOrder,updatedAt:new Date().toISOString()}).catch(error=>{console.error(error);toast('Chưa thể lưu cách sắp xếp vào Libaries/library.json.');}),180);}
 function tab(name) { document.querySelectorAll('.panel').forEach(p => p.hidden = p.id !== name); document.querySelectorAll('[data-tab]').forEach(b => b.classList.toggle('selected', b.dataset.tab === name)); renderLists(); }
@@ -222,11 +242,11 @@ async function lookup(text) {
   $('#result').innerHTML=`<div class="lookup-word"><h3 class="word-title">${esc(text)}</h3><button id="speak" title="Nghe phát âm" aria-label="Nghe phát âm">♫</button></div><div class="ipa">${esc(ipa || missingIpa)}</div><p class="translation">${esc(tr || 'Chưa tìm thấy nghĩa tiếng Việt.')}</p><button id="save-word" class="primary" ${!tr&&!ipa?'disabled':''}>＋ Lưu từ</button>${!tr?'<button id="retry">Thử lại</button>':''}`;
   if($('#retry'))$('#retry').onclick=()=>lookup(text);
   $('#speak').onclick=()=>{if(!('speechSynthesis' in window)){toast('Trình duyệt chưa hỗ trợ đọc phát âm.');return;}speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang=pronunciation?.accent==='Anh–Anh'?'en-GB':'en-US';u.rate=.85;speechSynthesis.speak(u);};
-  $('#save-word').onclick=()=>{const existing=state.words.find(w=>normalizeWord(w.text)===word);if(existing){existing.ipa=currentWord.ipa||existing.ipa;existing.ipaSource=currentWord.ipaSource||existing.ipaSource;existing.translation=currentWord.translation||existing.translation;}else state.words.unshift({...currentWord,id:crypto.randomUUID()});persist();renderLists();toast('Đã lưu từ vựng.');};
+  $('#save-word').onclick=async()=>{const existing=state.words.find(w=>normalizeWord(w.text)===word);if(existing){existing.ipa=currentWord.ipa||existing.ipa;existing.ipaSource=currentWord.ipaSource||existing.ipaSource;existing.translation=currentWord.translation||existing.translation;}else state.words.unshift({...currentWord,id:crypto.randomUUID()});const stored=await persist();renderLists();if(stored)toast('Đã lưu từ vựng.');};
 }
 $('#lookup-form').onsubmit=e=>{e.preventDefault();lookup($('#query').value);};
 $('#quote-note').onclick=beginNoteFromSelection;
-$('#save-note').onclick=()=>{if(!pdf){toast('Hãy mở PDF trước khi ghi chú.');return;}const text=$('#note-input').value.trim();if(!text){toast('Hãy nhập nội dung ghi chú.');return;}let affectedPage=pageNo;if(editId){const note=state.notes.find(n=>n.id===editId);if(note){note.text=text;affectedPage=note.page;}}else{const quote=!$('#quote').hidden&&selection?.docId===docId?selection:null;affectedPage=quote?.page||pageNo;state.notes.unshift({id:crypto.randomUUID(),docId,page:affectedPage,text,quote:quote?.text||'',rects:quote?.rects||[],created:new Date().toISOString()});}persist();resetNote();renderLists();drawHighlights(affectedPage);toast('Đã lưu ghi chú.');};
+$('#save-note').onclick=async()=>{if(!pdf){toast('Hãy mở PDF trước khi ghi chú.');return;}const text=$('#note-input').value.trim();if(!text){toast('Hãy nhập nội dung ghi chú.');return;}let affectedPage=pageNo;if(editId){const note=state.notes.find(n=>n.id===editId);if(note){note.text=text;affectedPage=note.page;}}else{const quote=!$('#quote').hidden&&selection?.docId===docId?selection:null;affectedPage=quote?.page||pageNo;state.notes.unshift({id:crypto.randomUUID(),docId,page:affectedPage,text,quote:quote?.text||'',rects:quote?.rects||[],created:new Date().toISOString()});}const stored=await persist();resetNote();renderLists();drawHighlights(affectedPage);if(stored)toast('Đã lưu ghi chú.');};
 function resetNote(){editId=null;selection=null;$('#note-input').value='';$('#quote').hidden=true;$('#cancel-edit').hidden=true;$('#save-note').textContent='＋ Lưu ghi chú';$('#selection-actions').hidden=true;}
 $('#cancel-edit').onclick=resetNote;
 function drawHighlights(targetPage){const shell=document.querySelector(`.pdf-page[data-page="${targetPage}"]`);if(!shell)return;shell.querySelectorAll('.highlight').forEach(el=>el.remove());const marks=[...state.highlights.filter(item=>item.docId===docId&&item.page===targetPage).map(item=>({...item,kind:'saved'})),...state.notes.filter(item=>item.docId===docId&&item.page===targetPage&&item.rects?.length).map(item=>({...item,kind:'note'}))];for(const mark of marks){for(const r of mark.rects||[]){const el=document.createElement('div');el.className=`highlight ${mark.kind}-highlight`;Object.assign(el.style,{left:`${r.x*100}%`,top:`${r.y*100}%`,width:`${r.w*100}%`,height:`${r.h*100}%`});shell.append(el);}}}

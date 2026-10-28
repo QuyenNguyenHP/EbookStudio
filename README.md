@@ -6,6 +6,22 @@ Trình đọc PDF cá nhân, giao diện tham khảo Local-AI/web-chat và sao c
 
 Cần Python 3. Chạy `./start.ps1` trong PowerShell, rồi mở http://127.0.0.1:1997. Có thể chạy trực tiếp `python server.py`. Không dùng `python -m http.server` hoặc mở `index.html` bằng `file://`, vì chức năng lưu PDF vào `Libaries` cần API của `server.py`.
 
+
+### Linux / WSL with Python 3.13+
+
+Python 3.13 removed `cgi`. Install the compatibility dependency in a virtual environment:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+python server.py
+```
+
+Open http://127.0.0.1:1997. For subsequent runs, activate `.venv` and run `python server.py`.
+If Ubuntu/WSL reports that venv is unavailable, run `sudo apt install python3-venv` and retry.
+For systemd, use `ExecStart=/home/dq/EbookStudio/.venv/bin/python /home/dq/EbookStudio/server.py` when using this environment.
+
 ## Chạy nền bằng systemd (Linux)
 
 Hướng dẫn này giả sử user Linux là `dq` và mã nguồn nằm tại `/home/dq/EbookStudio` (`~/EbookStudio`). Thư mục `Libaries` được Git bỏ qua; clone mới chỉ có `.gitkeep` và chưa có tài liệu. Tạo thư mục và cấp quyền ghi cho service:
@@ -87,7 +103,11 @@ Kiểm tra bằng `sudo journalctl -u ebookstudio -n 20 --no-pager`; log cần h
 - Chế độ **Trang đôi** giữ trang bìa đứng riêng rồi ghép các cặp 2–3, 4–5… để xem trọn các bản trải rộng. Chế độ này tự bật với `Daihatsu Gensets Engine Catalog.pdf` và có thể bật/tắt cho mọi tài liệu từ thanh công cụ.
 - Khi bôi đen nội dung PDF, từ hoặc cụm từ được tra và dịch ngay; thanh công cụ cạnh đoạn chọn tiếp tục cho phép Highlight hoặc Ghi chú. Chọn lại đúng đoạn đã highlight để bỏ highlight. Bảng tra từ tối giản chỉ hiện từ, IPA, nghĩa, nghe phát âm và lưu từ; hỗ trợ nhập thủ công. Dịch đoạn tối đa 500 byte. Chế độ tập trung ẩn sidebar thư viện, mở rộng PDF toàn màn hình nhưng vẫn giữ bảng Tra từ, Ghi chú và Từ đã lưu ở bên phải.
 - Lưu từ vựng, ghi chú theo trang, sửa/xóa, tô sáng đoạn đã ghi chú, đánh dấu trang và xuất ghi chú/từ vựng thành Markdown.
-- Lưu tiến độ, từ và ghi chú trong localStorage; lưu PDF nhập vào thư mục `Libaries`. Nhận diện tài liệu bằng fingerprint PDF để giữ liên kết tiến độ và ghi chú. Tệp trùng tên được tự thêm hậu tố `(1)`, `(2)` để không ghi đè.
+- Ghi chú và từ vựng được lưu vào `Libaries/reader-data.json` qua API backend; khi mở trang sẽ đọc lại từ file này. Lần đầu chưa có file, dữ liệu từ trình duyệt đang mở được tự chuyển sang backend. Hãy mở bằng trình duyệt có dữ liệu cũ trước. Tiến độ, dấu trang và highlight riêng vẫn nằm trong localStorage. PDF nhập vào được lưu trong `Libaries`. Nhận diện tài liệu bằng fingerprint PDF để giữ liên kết tiến độ và ghi chú. Tệp trùng tên được tự thêm hậu tố `(1)`, `(2)` để không ghi đè.
+
+Backend ghi JSON qua file tạm rồi thay thế nguyên tử. Nếu tab khác đã thay đổi dữ liệu, thao tác lưu bị từ chối để tránh ghi đè; giao diện yêu cầu xuất thay đổi hiện tại rồi tải lại trang. Khi lưu lỗi, bản dự phòng nằm ở localStorage với khóa `ebookstudio-reader-recovery`; giao diện không báo lưu thành công. Sao lưu `Libaries/reader-data.json` cùng các PDF. Dữ liệu dùng chung cho các trình duyệt truy cập cùng server; chưa có tài khoản riêng.
+
+Kiểm tra lưu trữ: `python -m unittest discover -s tests -p test_reader_data.py` và `node tests/reader-data.test.mjs`.
 
 ## Dịch vụ và giới hạn
 
@@ -97,4 +117,4 @@ Bộ 20 từ vũ trụ học Anh–Anh và Dictionary API là các nguồn bổ 
 
 Kiểm tra IPA: nếu có Node.js, chạy `node tests/pronunciation.test.mjs` (không cần cài npm dependencies).
 
-PDF.js 4.10.38 được lưu tại public/vendor (Apache-2.0, kèm LICENSE), nên đọc PDF không cần CDN. Bản dịch dùng https://mymemory.translated.net/doc/spec.php; IPA dùng dữ liệu cục bộ; https://dictionaryapi.dev/ là nguồn dự phòng. Chỉ văn bản cần tra trực tuyến được gửi tới dịch vụ. Bản dịch trực tuyến cần Internet và chịu hạn mức/độ sẵn sàng của dịch vụ. Không phải mọi từ đều có IPA. Phát âm dùng giọng tiếng Anh của trình duyệt. PDF scan chưa có OCR; hãy nhập từ thủ công. Ghi chú là lớp phủ của ứng dụng, không nhúng vào tệp PDF. Hãy xuất Markdown để sao lưu; xóa dữ liệu trình duyệt sẽ mất dữ liệu đã lưu. Bản dịch thuật ngữ chuyên ngành cần được đối chiếu theo ngữ cảnh.
+PDF.js 4.10.38 được lưu tại public/vendor (Apache-2.0, kèm LICENSE), nên đọc PDF không cần CDN. Bản dịch dùng https://mymemory.translated.net/doc/spec.php; IPA dùng dữ liệu cục bộ; https://dictionaryapi.dev/ là nguồn dự phòng. Chỉ văn bản cần tra trực tuyến được gửi tới dịch vụ. Bản dịch trực tuyến cần Internet và chịu hạn mức/độ sẵn sàng của dịch vụ. Không phải mọi từ đều có IPA. Phát âm dùng giọng tiếng Anh của trình duyệt. PDF scan chưa có OCR; hãy nhập từ thủ công. Ghi chú là lớp phủ của ứng dụng, không nhúng vào tệp PDF. Hãy xuất Markdown để sao lưu; xóa dữ liệu trình duyệt sẽ mất tiến độ, dấu trang và highlight riêng; ghi chú và từ vựng đã lưu thành công vẫn còn trong file JSON backend. Bản dịch thuật ngữ chuyên ngành cần được đối chiếu theo ngữ cảnh.

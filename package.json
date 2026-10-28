@@ -2,5 +2,5 @@
   "name": "ebookstudio",
   "private": true,
   "type": "module",
-  "scripts": {"test": "node tests/pronunciation.test.mjs"}
+  "scripts": {"test": "node tests/pronunciation.test.mjs && node tests/reader-data.test.mjs"}
 }
