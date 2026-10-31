@@ -4,3 +4,7 @@ Libaries/*
 
 __pycache__/
 *.pyc
+
+# Windows executable build output.
+build/
+dist/

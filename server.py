@@ -13,7 +13,9 @@ import json
 import os
 import re
 import shutil
+import sys
 import tempfile
+import webbrowser
 from datetime import datetime, timezone
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -21,7 +23,18 @@ from threading import Lock
 from urllib.parse import parse_qs, quote, urlparse
 
 ROOT = Path(__file__).resolve().parent
-LIBRARY = ROOT / "Libaries"
+FROZEN = bool(getattr(sys, "frozen", False))
+
+
+def library_directory() -> Path:
+    if not FROZEN:
+        return ROOT / "Libaries"
+    local_app_data = os.environ.get("LOCALAPPDATA")
+    base = Path(local_app_data) if local_app_data else Path.home() / "AppData" / "Local"
+    return base / "EbookStudio" / "Libaries"
+
+
+LIBRARY = library_directory()
 TRASH = LIBRARY / ".Trash"
 LIBRARY_LAYOUT = LIBRARY / "library.json"
 MAX_REQUEST = 1024 * 1024 * 1024
@@ -238,10 +251,17 @@ class EbookStudioHandler(SimpleHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    LIBRARY.mkdir(exist_ok=True)
-    server = ThreadingHTTPServer(("127.0.0.1", 1997), EbookStudioHandler)
-    print(f"EbookStudio: http://127.0.0.1:1997", flush=True)
+    LIBRARY.mkdir(parents=True, exist_ok=True)
+    port = int(os.environ.get("EBOOKSTUDIO_PORT", "1997"))
+    server = ThreadingHTTPServer(("127.0.0.1", port), EbookStudioHandler)
+    url = f"http://127.0.0.1:{port}"
+    print(f"EbookStudio: {url}", flush=True)
     print(f"Library: {LIBRARY}", flush=True)
+    if FROZEN:
+        print("Keep this window open while using EbookStudio. Close it to stop the application.", flush=True)
+        if os.environ.get("EBOOKSTUDIO_NO_BROWSER") != "1":
+            from threading import Timer
+            Timer(0.8, lambda: webbrowser.open(url)).start()
     try:
         server.serve_forever()
     except KeyboardInterrupt:

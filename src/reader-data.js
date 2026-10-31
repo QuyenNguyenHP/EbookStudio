@@ -1,4 +1,26 @@
 // Serialize writes and reject stale tabs instead of overwriting newer data.
+export function itemsForDocument(items, docId) {
+  if (!docId || !Array.isArray(items)) return [];
+  return items.filter(item => item.docId === docId);
+}
+
+export function upsertDocumentWord(words, word, normalize, createId = () => crypto.randomUUID()) {
+  const normalized = normalize(word.text);
+  const existing = words.find(item => item.docId === word.docId && normalize(item.text) === normalized);
+  if (existing) {
+    existing.ipa = word.ipa || existing.ipa;
+    existing.ipaSource = word.ipaSource || existing.ipaSource;
+    existing.translation = word.translation || existing.translation;
+    existing.definition = word.definition || existing.definition;
+    existing.page = word.page;
+    existing.book = word.book;
+    return existing;
+  }
+  const saved = {...word, id: createId()};
+  words.unshift(saved);
+  return saved;
+}
+
 export function createReaderStore(state, report, storage = {setItem: (key, value) => localStorage.setItem(key, value)}, request = fetch) {
   let revision = null, lastSaved = '', queue = Promise.resolve(), blocked = false;
   const snapshot = () => JSON.stringify({notes: state.notes, words: state.words});

@@ -1,5 +1,21 @@
 import assert from 'node:assert/strict';
-import {createReaderStore} from '../src/reader-data.js';
+import {createReaderStore, itemsForDocument, upsertDocumentWord} from '../src/reader-data.js';
+
+const normalize = text => text.toLowerCase().trim();
+const scopedWords = [
+  {id: 'w-a', docId: 'pdf-a', text: 'Orbit', translation: 'quỹ đạo'},
+  {id: 'w-b', docId: 'pdf-b', text: 'Galaxy', translation: 'thiên hà'},
+  {id: 'legacy', text: 'global'},
+];
+assert.deepEqual(itemsForDocument(scopedWords, 'pdf-a').map(word => word.id), ['w-a']);
+assert.deepEqual(itemsForDocument(scopedWords, 'pdf-b').map(word => word.id), ['w-b']);
+assert.deepEqual(itemsForDocument(scopedWords, undefined), []);
+upsertDocumentWord(scopedWords, {docId: 'pdf-a', text: 'orbit', translation: 'updated', page: 2, book: 'A'}, normalize, () => 'unused');
+assert.equal(scopedWords.length, 3);
+assert.equal(scopedWords.find(word => word.id === 'w-a').translation, 'updated');
+upsertDocumentWord(scopedWords, {docId: 'pdf-b', text: 'Orbit', translation: 'same word, other PDF', page: 5, book: 'B'}, normalize, () => 'w-c');
+assert.equal(scopedWords[0].id, 'w-c');
+assert.deepEqual(itemsForDocument(scopedWords, 'pdf-b').map(word => word.id), ['w-c', 'w-b']);
 
 let remote = {revision: 0, notes: [], words: []};
 const messages = [], backups = new Map();

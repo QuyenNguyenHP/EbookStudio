@@ -22,6 +22,18 @@ Open http://127.0.0.1:1997. For subsequent runs, activate `.venv` and run `pytho
 If Ubuntu/WSL reports that venv is unavailable, run `sudo apt install python3-venv` and retry.
 For systemd, use `ExecStart=/home/dq/EbookStudio/.venv/bin/python /home/dq/EbookStudio/server.py` when using this environment.
 
+### Build a Windows EXE
+
+Build on Windows with the same CPU architecture as the target laptop (normally x64, or ARM64 for an ARM laptop):
+
+```powershell
+./build-exe.ps1
+```
+
+The script installs PyInstaller and creates `dist\EbookStudioDesktop.exe`. Copy that single file to the target laptop and double-click it. EbookStudio opens through Microsoft Edge app mode as its own chromeless desktop window—not a browser tab or normal browser window—and works without Python or a separate web server installation. Closing the application window stops its private local server.
+
+The packaged application stores PDFs, layout, notes, and vocabulary in `%LOCALAPPDATA%\EbookStudio\Libaries`, and persistent window state in `%LOCALAPPDATA%\EbookStudio\DesktopProfileEdge`. This keeps user data safe when the EXE is replaced with a newer build. PDF reading, library organization, notes, local IPA, highlights, bookmarks, and exports work offline. Online translation and the Dictionary API fallback still require Internet access. The target laptop must have Microsoft Edge, which is included with current Windows 10 and Windows 11 systems.
+
 ## Chạy nền bằng systemd (Linux)
 
 Hướng dẫn này giả sử user Linux là `dq` và mã nguồn nằm tại `/home/dq/EbookStudio` (`~/EbookStudio`). Thư mục `Libaries` được Git bỏ qua; clone mới chỉ có `.gitkeep` và chưa có tài liệu. Tạo thư mục và cấp quyền ghi cho service:
@@ -102,7 +114,7 @@ Kiểm tra bằng `sudo journalctl -u ebookstudio -n 20 --no-pager`; log cần h
 - Cuộn liên tục qua các trang; ứng dụng chỉ dựng những trang gần vùng nhìn để giữ hiệu năng với tài liệu dài. Nếu PDF cung cấp Outline/Bookmarks, nút **Mục lục** hiển thị các heading nhiều cấp và cho phép chuyển thẳng tới phần tương ứng. Thanh navigation cũng có nút về Thư viện, trang trước/trang sau, nhập số trang và phím tắt `Alt+←` / `Alt+→`; chế độ trang đôi tự chuyển theo từng cặp. Có thể phóng to/thu nhỏ ngay tại điểm đang xem, vừa chiều rộng và dùng chế độ tập trung. Khi tài liệu phóng lớn hơn khung đọc, kéo vùng nền bằng con trỏ bàn tay để di chuyển; vẫn có thể bôi đen trực tiếp trên chữ.
 - Chế độ **Trang đôi** giữ trang bìa đứng riêng rồi ghép các cặp 2–3, 4–5… để xem trọn các bản trải rộng. Chế độ này tự bật với `Daihatsu Gensets Engine Catalog.pdf` và có thể bật/tắt cho mọi tài liệu từ thanh công cụ.
 - Khi bôi đen nội dung PDF, từ hoặc cụm từ được tra và dịch ngay; thanh công cụ cạnh đoạn chọn tiếp tục cho phép Highlight hoặc Ghi chú. Chọn lại đúng đoạn đã highlight để bỏ highlight. Bảng tra từ tối giản chỉ hiện từ, IPA, nghĩa, nghe phát âm và lưu từ; hỗ trợ nhập thủ công. Dịch đoạn tối đa 500 byte. Chế độ tập trung ẩn sidebar thư viện, mở rộng PDF toàn màn hình nhưng vẫn giữ bảng Tra từ, Ghi chú và Từ đã lưu ở bên phải.
-- Lưu từ vựng, ghi chú theo trang, sửa/xóa, tô sáng đoạn đã ghi chú, đánh dấu trang và xuất ghi chú/từ vựng thành Markdown.
+- Lưu từ vựng, ghi chú theo trang, sửa/xóa, tô sáng đoạn đã ghi chú, đánh dấu trang và xuất ghi chú/từ vựng thành Markdown. Ghi chú và từ vựng được gắn với từng PDF; giao diện chỉ hiển thị dữ liệu của tài liệu đang mở.
 - Ghi chú và từ vựng được lưu vào `Libaries/reader-data.json` qua API backend; khi mở trang sẽ đọc lại từ file này. Lần đầu chưa có file, dữ liệu từ trình duyệt đang mở được tự chuyển sang backend. Hãy mở bằng trình duyệt có dữ liệu cũ trước. Tiến độ, dấu trang và highlight riêng vẫn nằm trong localStorage. PDF nhập vào được lưu trong `Libaries`. Nhận diện tài liệu bằng fingerprint PDF để giữ liên kết tiến độ và ghi chú. Tệp trùng tên được tự thêm hậu tố `(1)`, `(2)` để không ghi đè.
 
 Backend ghi JSON qua file tạm rồi thay thế nguyên tử. Nếu tab khác đã thay đổi dữ liệu, thao tác lưu bị từ chối để tránh ghi đè; giao diện yêu cầu xuất thay đổi hiện tại rồi tải lại trang. Khi lưu lỗi, bản dự phòng nằm ở localStorage với khóa `ebookstudio-reader-recovery`; giao diện không báo lưu thành công. Sao lưu `Libaries/reader-data.json` cùng các PDF. Dữ liệu dùng chung cho các trình duyệt truy cập cùng server; chưa có tài khoản riêng.
